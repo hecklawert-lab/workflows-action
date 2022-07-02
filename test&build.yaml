@@ -28,7 +28,7 @@ jobs:
  
   sonar:
     if: ${{ (github.event_name == 'push' || github.event.inputs.sonar == 'true') && always() }}
-    runs-on: sdid1weugvml001
+    runs-on: runnername
     steps:
       - name: SonarQube Scan
         uses: hectorgf909/sonarqube-action@1.0.0
@@ -36,7 +36,7 @@ jobs:
          host: ${{ secrets.SONARQUBE_HOST }}
          login: ${{ secrets.SONARQUBE_TOKEN }}
          projectBaseDir: "./src"
-         projectKey: "gsc:gsc:blk-notarization-dni:dni"
+         projectKey: "project_key"
  
   kiuwan:
     if: ${{ github.event_name == 'push' || (github.event.inputs.kiuwan == 'true' && always()) }}
@@ -49,9 +49,9 @@ jobs:
         uses: hectorgf909/KiuwanBaselineAction@v1.2
         with:
           # Name of Kiuwan project
-          project: gsc:gsc:blk-notarization-dni:dni
+          project: project
           # Label for the analysis
-          label: gsc:gsc:blk-notarization-dni:dni
+          label: label
           # Username for kiuwan platform
           userid: ${{ secrets.KIUWAN_USER }}
           # Password for kiuwan platform
@@ -86,7 +86,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: docker.pkg.github.com
-          repository: santander-group-edelweiss/blk.notarizacion.dni/notarizacion-dni
+          repository: github_org/repo_name/package_name
           tags: ${{ env.VERSION  }},latest
            
       # Create release   
