@@ -1,0 +1,105 @@
+# This is a basic CI/CD workflow to help you get started with Actions
+ 
+name: CICD
+ 
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on pull request event but only for the main branch
+  pull_request:
+    branches: [ main ]
+ 
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      sonar:
+        type: boolean
+        description: Sonnar
+        required: true
+      kiuwan:
+        type: boolean
+        description: Kiuwan
+        required: true   
+      build:
+        type: boolean
+        description: Build
+        required: true   
+ 
+jobs:
+ 
+  sonar:
+    if: ${{ (github.event_name == 'push' || github.event.inputs.sonar == 'true') && always() }}
+    runs-on: sdid1weugvml001
+    steps:
+      - name: SonarQube Scan
+        uses: hectorgf909/sonarqube-action@1.0.0
+        with:
+         host: ${{ secrets.SONARQUBE_HOST }}
+         login: ${{ secrets.SONARQUBE_TOKEN }}
+         projectBaseDir: "./src"
+         projectKey: "gsc:gsc:blk-notarization-dni:dni"
+ 
+  kiuwan:
+    if: ${{ github.event_name == 'push' || (github.event.inputs.kiuwan == 'true' && always()) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+ 
+      - name: Kiuwan Baseline Analysis
+        uses: hectorgf909/KiuwanBaselineAction@v1.2
+        with:
+          # Name of Kiuwan project
+          project: gsc:gsc:blk-notarization-dni:dni
+          # Label for the analysis
+          label: gsc:gsc:blk-notarization-dni:dni
+          # Username for kiuwan platform
+          userid: ${{ secrets.KIUWAN_USER }}
+          # Password for kiuwan platform
+          password: ${{ secrets.KIUWAN_PASS }}     
+          # Source path location
+          sourcepath: ./src    
+     
+  build:
+    runs-on: ubuntu-latest
+    # The type of runner that the job will run on
+    needs: [sonnar, kiuwan]
+    if: ${{ (github.event_name == 'pull_request' && !(contains(needs.*.result, 'failure'))) || (github.event.inputs.build == 'true' && always()) }}
+    env:
+      WORK-DIR: ./
+      tagname: documentnotaryinterface
+      dockername: documentnotaryinterface
+      sleep: "10"
+      pattern: successfully
+ 
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+       
+      # Checks the version of the release
+      - run: echo "VERSION=$(cat VERSION)" >> $GITHUB_ENV
+ 
+      # Build and push image into GitHub Registry
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: docker.pkg.github.com
+          repository: santander-group-edelweiss/blk.notarizacion.dni/notarizacion-dni
+          tags: ${{ env.VERSION  }},latest
+           
+      # Create release   
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: V${{ env.VERSION }}
+          body: |
+            Changes:
+            - Fix API call paramaters
+          draft: false
+          prerelease: false
